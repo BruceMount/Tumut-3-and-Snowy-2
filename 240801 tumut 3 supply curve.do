@@ -42,6 +42,14 @@ use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustrali
 keep if Year == 2024
 collapse tumut3powerstationtumut3 wind hydro largescalesolar blackcoal naturalgasocgt smallscalesolar batterystorage naturalgasccgt nswmeteredflow, by(Hour)
 
+// gas production profile in 2023&2024
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year >= 2024
+collapse tallawarrapowerstationtalwa1talw smithfieldenergyfacilitysithe01s colongrapowerstationcg1cg2cg3cg4 uranquintypowerstationuranq11ura , by(Hour)
+
+
+
 *various 5-minute prices collapses by hour
 
 clear all
@@ -182,7 +190,7 @@ histogram vwap_charging, frequency xtitle(Daily wolume weighted average price pa
 
 clear all
 use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
-//keep if Year == 2023
+keep if Year == 2024
 bysort Year: gen cum_pump = sum(tumut3pumpsloadsnowyp)
 gen charging_dollars = nswpricemwh * tumut3pumpsloadsnowyp
 bysort Year: gen cum_dollars = sum(charging_dollars)
@@ -202,6 +210,23 @@ bysort Year: gen cum_gen_dollars = sum(gen_dollars)
 bysort Year: gen vwap_gen = cum_gen_dollars / cum_gen
 keep if Month==12 & Day==31 & Hour ==23 & Minute ==55
 bysort Year: sum(cum_gen_dollars cum_gen vwap_gen)
+
+*vwap ps specified gens
+
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year == 2024
+
+bysort Year: gen cum_gen = sum(smithfieldenergyfacilitysithe01s)
+gen gen_dollars = nswpricemwh * smithfieldenergyfacilitysithe01s
+bysort Year: gen cum_gen_dollars = sum(gen_dollars)
+bysort Year: gen vwap_gen = cum_gen_dollars / cum_gen
+keep if Month==12 & Day==31 & Hour ==23 & Minute ==55
+bysort Year: sum(cum_gen_dollars cum_gen vwap_gen)
+
+sum vwap_gen
+
+
 
 * proportion of production in price bands in 2023
 
@@ -319,9 +344,9 @@ use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustrali
 keep if Year ==2024 // choose one or more years to analyse
 
 bysort Year Month Day: gen daily_tumut3_gen = sum(tumut3powerstationtumut3)/12 
-bysort Year Month Day: gen daily_gas_gen = sum(naturalgasocgt)/12 
+bysort Year Month Day: gen daily_gas_gen = sum(naturalgasocgt+naturalgasccgt)/12 
 bysort Year Month Day: gen daily_hydro_gen = sum(hydro)/12
-bysort Year Month Day: gen daily_peaking_gen = sum(naturalgasocgt+ hydro +tumut3powerstationtumut3)/12 
+bysort Year Month Day: gen daily_peaking_gen = sum(naturalgasocgt+naturalgasccgt+ hydro +tumut3powerstationtumut3)/12 
 gen t3income = tumut3powerstationtumut3*nswpricemwh/12
 bysort Year Month Day: gen daily_t3income = sum(t3income)
 gen daily_t3avgprice = daily_t3income/daily_tumut3_gen
@@ -357,7 +382,7 @@ summarize(t3incomeq1 t3incomeq2 t3incomeq3 t3incomeq4 t3genq1 t3genq2 t3genq3 t3
 clear all
 use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
 
-keep if Year == 2024 //covers 2023 and or 2024
+keep if Year == 2023 //covers 2023 and or 2024
 
 gen t3cost = tumut3pumpsloadsnowyp*nswpricemwh/12
 bysort Year Month Day: gen daily_tumut3_pump = sum(tumut3pumpsloadsnowyp)/12 
@@ -390,7 +415,7 @@ summarize(t3costq1 t3costq2 t3costq3 t3costq4 t3pumpq1 t3pumpq2 t3pumpq3 t3pumpq
 
 
 
-* investigate  prices when different generators are at the margin in 2023, 2024 or 2023 & 2024
+* investigate  prices when different dispatchible generators are operating in 2023, 2024 or 2023 & 2024
 
 clear all
 use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
@@ -398,14 +423,145 @@ use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustrali
 //keep if Year == 2024
 keep if Year >= 2023
 
-gen peakinggen = naturalgasocgt+ hydro +tumut3powerstationtumut3
+gen ocgt = colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura
+gen ccgt = tallawarrapowerstationtalwa1talw + smithfieldenergyfacilitysithe01s
+gen peakinggen = ocgt + ccgt + tumut3powerstationtumut3 + hydro
+gen vre = wind+smallscalesolar+ largescalesolar
 
 //keep if nswpricemwh<500 & nswpricemwh>0
 
-sum blackcoal hydro tumut3powerstationtumut3 naturalgasocgt nswpricemwh if  peakinggen <= 0 
-sum blackcoal hydro tumut3powerstationtumut3 naturalgasocgt nswpricemwh if  hydro>0 & tumut3powerstationtumut3==0 & naturalgasocgt ==0 
-sum blackcoal hydro tumut3powerstationtumut3 naturalgasocgt nswpricemwh nswregionaldemand if  tumut3powerstationtumut3>0 & naturalgasocgt==0 
-sum blackcoal hydro tumut3powerstationtumut3 naturalgasocgt colongrapowerstationcg1cg2cg3cg4 uranquintypowerstationuranq11ura nswpricemwh nswregionaldemand if  naturalgasocgt>0 
+sum blackcoal hydro ccgt tumut3powerstationtumut3 ocgt nswpricemwh if blackcoal>0 & peakinggen <= 0 //coal only
+sum blackcoal hydro ccgt tumut3powerstationtumut3 ocgt nswpricemwh  if blackcoal>0 & hydro>0 & ccgt==0 & tumut3powerstationtumut3==0 & ocgt==0  //coal+hydro
+sum blackcoal hydro ccgt tumut3powerstationtumut3 ocgt nswpricemwh  if  hydro>0 & ccgt>0 &tumut3powerstationtumut3==0 & ocgt==0, detail  //coal+hydro+ccgt
+sum blackcoal hydro ccgt tumut3powerstationtumut3 ocgt nswpricemwh  if  hydro>0 & ccgt>0 &tumut3powerstationtumut3>0 & ocgt==0 //coal+hydro+ccgt+tumut3
+sum blackcoal hydro ccgt tumut3powerstationtumut3 ocgt nswpricemwh  if  hydro>0 & ccgt>0 &tumut3powerstationtumut3>0 & ocgt>0 //coal+hydro+ccgt+tumut3+ocgt
+
+
+****************** Analysis of Tumut 3 assuming it is  dispatched so as to maximise the displacement of gas generation and its sales 
+/// is based on pump price grossed up for round trip losses (this is the analysis used to work out price effects in the paper) *****************
+
+* Step 1 load data and check out nswpricemwh
+
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year==2024 
+
+**  Step 2 work out the extent to which t3's spare capacity is able to displace OCGT +  CCGT (in excess of 70 MW) + interconnector imports (in excess of 710 MW),  up to T3's spare capacity 
+
+gen ccgt = tallawarrapowerstationtalwa1talw + smithfieldenergyfacilitysithe01s
+gen old_gas = colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura + ccgt
+sum old_gas
+gen newt3gen_min_gas = tumut3powerstationtumut3 
+replace newt3gen_min_gas = (tumut3powerstationtumut3+colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura+ccgt-70) if (1800-tumut3powerstationtumut3) > (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura - nsw_qldavg + vic_nswavg - 710 +ccgt-60) & tumut3powerstationtumut3>0
+// set T3 output to the sum of what it did plus gas output if there is enough spare capacity in T3 to replace the gas generators and interconnector imports from QLD and Vic 
+
+* Step 3 work out  volume of additional pumping to achieve this displacement 
+ 
+sum  tumut3pumpsloadsnowyp
+sum  tumut3pumpsloadsnowyp if Hour >=9 & Hour <16
+sum nswregionaldemand if Hour >=9 & Hour <16
+egen average_newt3gen = mean(newt3gen_min_gas) 
+egen average_oldt3gen = mean(tumut3powerstationtumut3) 
+gen newpump = (average_newt3gen - average_oldt3gen)*1.25
+sum newpump
+
+
+*  Step 4 work out overall price effect 
+
+gen price_minimumgas = nswpricemwh  // isolate to time when T3 is generating
+sum price_minimumgas  
+replace price_minimumgas = 49 if (1800-tumut3powerstationtumut3) > (ccgt-53 + colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura - nsw_qldavg + vic_nswavg - 703) & (ccgt- 53 + colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura)>0 
+//set price to $69 when T3 displaces gas
+sum price_minimumgas  
+replace price_minimumgas = 49 if tumut3powerstationtumut3 > 0 & (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura)==0 & ccgt<53 & (1800-tumut3powerstationtumut3) > (- nsw_qldavg + vic_nswavg - 703)
+// set price to $69 when T3 is generating and peak gas is not generating except 70 MW or less of CCGT and T3 has enough spare capacity to displace interconnector imports
+sum price_minimumgas nswpricemwh if tumut3powerstationtumut3>0 //the effect of the new regume on prices when T3 is generating
+sum price_minimumgas nswpricemwh if Hour >=17 & Hour <20 & tumut3powerstationtumut3>0 // //the effect of the new regume on prices when T3 is generating and from 5 to 8pm
+sum price_minimumgas nswpricemwh // the effect of the new regime on all prices 
+sum price_minimumgas nswpricemwh if Hour >=17 & Hour <20 // the effect of the new regime between 5pm and 8pm
+
+
+
+
+* (for information) produce price duration curve for when Tumut 3 is pumping
+
+gen pumprice = .
+replace pumprice = nswpricemwh if Hour>=9 & Hour<16
+sum pumprice
+drop if pumprice>300
+sum pumprice  
+drop if pumprice<-100
+sum pumprice
+sort pumprice
+gen rank = _N - _n + 1
+gen duration_percent = (rank / _N) * 100
+twoway line pumprice duration_percent, ///
+    title("Spot price distribution 9am to 4pm 2023 & 2024") ///
+    xtitle("Percentile") ///
+    ytitle("Price ($/MWh)") ///
+    //xscale(reverse)
+	yscale(range(-100 300) tics(-100(25)300)
+	
+*  (for information) duration curve of demand 9am to 4pm
+
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year>=2023
+
+gen demand = .
+replace demand = nswregionaldemand if tumut3pumpsloadsnowyp>0
+gen pumprice = .
+replace pumprice = nswpricemwh if tumut3pumpsloadsnowyp>0
+sum demand, detail 
+sort demand
+
+regress pumprice tumut3pumpsloadsnowyp
+
+drop if pumprice<0 & pumprice>300
+
+gen log_pumprice = log(pumprice)
+gen log_tumut3pumpsloadsnowyp = log(tumut3pumpsloadsnowyp)
+regress log_pumprice log_tumut3pumpsloadsnowyp
+
+gen rank = _N - _n + 1
+gen duration_percent = (rank / _N) * 100
+twoway line demand duration_percent, ///
+    title("NSW demand distribution 9am to 4pm 2023 & 2024") ///
+    xtitle("Percentile") ///
+    ytitle("MW)") ///
+    //xscale(reverse)
+	//yscale(range(-100 300) tics(-100(25)300)
+
+* (for information)  background information work out periods and prices when T3 is not able to displace gas 
+
+gen pricewhengasneed = .
+replace  pricewhengasneed = nswpricemwh if (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura)>(1800-tumut3powerstationtumut3) // set price = nsw price if Tumut 3 does not have enough spare capacity to fully displace gas
+sum pricewhengasneed
+
+* (for information) for background look at interconnector imports 
+
+gen imports = vic_nswavg - nsw_qldavg if (vic_nswavg - nsw_qldavg)>0
+gen nsw_vic = nswpricemwh - vicpricemwh if (vic_nswavg - nsw_qldavg)>0
+gen nsw_qld = nswpricemwh - qldpricemwh if (vic_nswavg - nsw_qldavg)>0
+
+sum  imports nswpricemwh nsw_vic nsw_qld  if tumut3powerstationtumut3<=0, detail  // what were imports when Tumut 3 wasn't generating
+sum  imports nswpricemwh nsw_vic nsw_qld  if tumut3powerstationtumut3>0 & (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura)<=0, detail // what were imports when Tumut 3  generating and peaking gas not generating
+sum  imports nswpricemwh nsw_vic nsw_qld  if tumut3powerstationtumut3>0 & (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura) >0, detail // // what were imports when Tumut 3 was generating and when gas was generating
+
+//drop if nswpricemwh>1000
+
+regress ccgt nswpricemwh //investigate relationship between CCGT production and market price
+regress imports nswpricemwh //investigate relationship between imports and market price 
+
+
+
+
+
+
+
+
+
+
 
 
 // OTHER ANALYSIS 
@@ -638,8 +794,59 @@ histogram gen_price, percent xtitle(Spot price when generating) xmtick(##1)
  twoway (scatter gen_price tumut3powerstationtumut3)
 
 
-* impact of Tumut 3 dispatch at $69/MWh on weighted average market prices
-  
+***** Analysis of impact of Tumut 3 dispatch at average price assuming flat out pumping between 10am and 4pm and grossing up for round-trip loss and variable O&M, excluding P>300 
+
+
+*Steps for set and forget approach
+
+1. Work out average price from 10am to 4pm exclude when P>300
+2. Gross up for round-trip loss of 25% and add $5/MWh for O&M to give revised T3 price
+3. Recalculate prices from 5pm to 8pm setting them equal to revised T3 price as long as used capacity on T3 < actual gas generation, in which case leave price as it is
+4. Work out revised average price for the year
+ 
+ 
+*Step 1.   
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year>=2023 
+
+sum tumut3pumpsloadsnowyp
+gen pump_price = nswpricemwh if Hour >=10 & Hour <=16
+drop if pump_price >300 & Hour >=10 & Hour <=16
+sum pump_price
+sum tumut3pumpsloadsnowyp  
+
+*Step 2.  
+egen x = mean(pump_price)
+gen t3price = x/0.75+5
+sum t3price
+
+*Step 3. 
+gen new_gen = 898 // the value of the pumped energy generated over three hours net of round trip loss of 25%
+gen old_price_peak = nswpricemwh if Hour >=17 & Hour <20
+gen new_price_peak = nswpricemwh if Hour >=17 & Hour <20
+replace new_price_peak = t3price if new_gen > (colongrapowerstationcg1cg2cg3cg4 + uranquintypowerstationuranq11ura) & Hour >=17 & Hour <20
+sum new_price_peak old_price_peak 
+
+sum new_price_peak if new_price_peak> t3price
+
+*Step 4 
+gen new_price = nswpricemwh
+replace new_price = new_price_peak if  Hour>=17 & Hour <20 
+sum nswpricemwh new_price
+ 
+ 
+
+
+
+
+
+
+
+
+
+**** something else 
+ 
 clear all
 use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
 
@@ -672,7 +879,7 @@ regress log_nswpricemwh log_sparet3gen
 
 
   
-*Analysis of effect of much higher Tumut 3 operation on market prices
+****** Analysis of effect of much higher Tumut 3 operation on market prices
 
 Steps 
 
@@ -682,15 +889,21 @@ Steps
 4.	Work out % change in spare T3 generation as a result of this
 5.	Establish relationship between price and spare t3 generation
 6.	Predict price with new spare T3 generation, work out average price before new generation, work out average price after new generation, compare. 
-  
+7. Predict spot price effect over the whole period
 
 * 1.	Pump flat out from 10h00 to 16h00 (6 hours)
 clear all
 use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
 keep if Year >= 2023
 
+//keep if nswpricemwh<300
+
+sum nswpricemwh,detail
+
 gen newt3pump = .
 replace newt3pump = 600 if Hour >=10 & Hour <16 //pump at constant 600 MW between these hours
+drop if tumut3pumpsloadsnowyp>0 & nswpricemwh>300 // exclude those intervals if punp
+sum tumut3pumpsloadsnowyp
 
 * 2. Work out how much extra energy from this
 gen new_tumut3pumpsloadsnowyp = tumut3pumpsloadsnowyp
@@ -703,17 +916,17 @@ sum cum_pump cum_newpump
   
 gen pump_diff = new_tumut3pumpsloadsnowyp - tumut3pumpsloadsnowyp
 
-gen pump_price = .
-replace pump_price = nswpricemwh if Hour >=10 & Hour <16 
-
-gen avg_pump_price = sum(pump_price)/(12*365*6*2)
-
-sum avg_pump_price
-
 gen cum_pump_diff = sum(pump_diff)/12 // find difference in pumped amount
 egen x = max(cum_pump_diff) // this is the increase in pumping
 
 sum x
+
+gen pump_price = .
+replace pump_price = nswpricemwh if Hour >=10 & Hour <16 
+gen avg_pump_price = sum(pump_price)/(12*365*6*2)
+sum avg_pump_price
+
+
 *3.	Allocate this extra generation from 17h00 to 20h00  
 
 gen new_tumut3powerstationtumut3 = tumut3powerstationtumut3
@@ -737,8 +950,9 @@ sum  newcum_tumut3powerstationtumut3 // see how much energy has been lopped off 
 
 gen spare_old = 1800 - tumut3powerstationtumut3
 gen spare_new = 1800 - new_tumut3powerstationtumut3
-gen percentchange = (spare_old- spare_new)/spare_old*100
+gen percentchange = (spare_new- spare_old)/spare_old*100
 
+sum percentchange
 
 *5.	Establish relationship between price and spare t3 generation
 
@@ -753,14 +967,24 @@ regress log_nswpricemwh log_sparet3gen
 *6.	Predict price in peak period with new spare T3 generation, work out average price before new generation, work out average price after new generation, compare. 
 
 
-gen new_nswpricemwh = nswpricemwh*0.4139*percentchange/100 if  Hour>=17 & Hour <20 // using the regression coefficient
+gen new_nswpricemwh = nswpricemwh*-0.4139*percentchange/100 if  Hour>=17 & Hour <20 // using the regression coefficient to predict new price
 gen nswpricemwh_peak = nswpricemwh if  Hour>=17 & Hour <20   
 
 sum new_nswpricemwh nswpricemwh_peak
 
-* Predict spot price effect over the whole period
+*7 Predict spot price effect over the whole period
 
 gen new_price = nswpricemwh
 replace new_price = nswpricemwh*0.4139*percentchange/100 if  Hour>=17 & Hour <20
 
 sum new_price nswpricemwh,detail
+
+***** Analysis of relationship between Tumut 3 production and NSW price
+
+clear all
+use "/Users/e5110130/Library/CloudStorage/GoogleDrive-bruce.mountain@cmeaustralia.com.au/Shared drives/VEPC/Stata/BM stata tools/Generation price demand analysis tool /Dta files/240604 tumut 3 analysis.dta", replace
+keep if Year >= 2023
+
+keep if tumut3powerstationtumut3>0 & Hour>=17 & Hour <20
+
+regress nswpricemwh tumut3powerstationtumut3
